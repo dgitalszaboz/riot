@@ -1910,7 +1910,7 @@ function replaceYield(tmpl, html) {
   // be careful with #1343 - string on the source having `$1`
   var src = {};
 
-  html = html && cuccos(html).trim();
+  html = html && cuccos(html,src).trim();
 
   return tmpl
     .replace(reYieldDest, function (_, ref, def) {  // yield with from - to attrs
@@ -1920,7 +1920,7 @@ function replaceYield(tmpl, html) {
       return html || def || ''
     })
 }
-function cuccos(str) {
+function cuccos(str,src) {
     var tmp = matchRecursiveRegExp(str, reYieldSrcLeft, reYieldSrcRight, "i");
     if (tmp.every(e => matchRecursiveRegExp(e.value, reYieldSrcLeft, reYieldSrcRight, "i").length === 0)) {
         return str.replace(reYieldSrc, function (_, ref, text) {
@@ -1930,7 +1930,7 @@ function cuccos(str) {
     }
     else {
         var res = tmp.map(t => {
-            return cuccos(t.before + cuccos(t.value) + t.after);
+            return cuccos(t.before + cuccos(t.value,src) + t.after,src);
         });
         return res.join();
     }
