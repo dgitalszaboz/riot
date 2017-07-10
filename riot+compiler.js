@@ -1910,7 +1910,7 @@ function replaceYield(tmpl, html) {
   // be careful with #1343 - string on the source having `$1`
   var src = {};
 
-  html = html && html.cuccos(html).trim();
+  html = html && cuccos(html).trim();
 
   return tmpl
     .replace(reYieldDest, function (_, ref, def) {  // yield with from - to attrs
