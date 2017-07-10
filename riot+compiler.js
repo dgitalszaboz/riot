@@ -1862,6 +1862,8 @@ function parseAttributes(dom, attrs, fn) {
 var reHasYield  = /<yield\b/i;
 var reYieldAll  = /<yield\s*(?:\/>|>([\S\s]*?)<\/yield\s*>|>)/ig;
 var reYieldSrc  = /<yield\s+to=['"]([^'">]*)['"]\s*>([\S\s]*?)<\/yield\s*>/ig;
+var reYieldSrcLeft = "<yield\\s+to=['\"]([^'\">]*)['\"]\\s*>";
+var reYieldSrcRight = "<\/yield\\s*>";
 var reYieldDest = /<yield\s+from=['"]?([-\w]+)['"]?\s*(?:\/>|>([\S\s]*?)<\/yield\s*>)/ig;
 var rootEls = { tr: 'tbody', th: 'tr', td: 'tr', col: 'colgroup' };
 var tblTags = IE_VERSION && IE_VERSION < 10 ? RE_SPECIAL_TAGS : RE_SPECIAL_TAGS_NO_OPTION;
@@ -1908,10 +1910,7 @@ function replaceYield(tmpl, html) {
   // be careful with #1343 - string on the source having `$1`
   var src = {};
 
-  html = html && html.replace(reYieldSrc, function (_, ref, text) {
-    src[ref] = src[ref] || text;   // preserve first definition
-    return ''
-  }).trim();
+  html = html && html.cuccos(html).trim();
 
   return tmpl
     .replace(reYieldDest, function (_, ref, def) {  // yield with from - to attrs
@@ -1921,7 +1920,53 @@ function replaceYield(tmpl, html) {
       return html || def || ''
     })
 }
+function cuccos(str) {
+    var tmp = matchRecursiveRegExp(str, reYieldSrcLeft, reYieldSrcRight, "i");
+    if (tmp.every(e => matchRecursiveRegExp(e.value, reYieldSrcLeft, reYieldSrcRight, "i").length === 0)) {
+        return str.replace(reYieldSrc, function (_, ref, text) {
+		    src[ref] = src[ref] || text;   // preserve first definition
+		    return ''
+		  });
+    }
+    else {
+        var res = tmp.map(t => {
+            return cuccos(t.before + cuccos(t.value) + t.after);
+        });
+        return res.join();
+    }
+}
 
+			     
+function matchRecursiveRegExp(str, left, right, flags) {
+    var f = flags || "",
+        g = f.indexOf("g") > -1,
+        x = new RegExp(left + "|" + right, "g" + f),
+        l = new RegExp(left, f.replace(/g/g, "")),
+        a = [],
+        t, s, m;
+
+    do {
+        t = 0;
+        while (m = x.exec(str)) {
+            if (l.test(m[0])) {
+                if (!t++) s = x.lastIndex;
+            } else if (t) {
+                if (!--t) {
+                    a.push({
+                        start: s,
+                        end: m.index,
+                        before: str.substring(0, s),
+                        value: str.slice(s, m.index),
+                        after: str.substring(m.index)
+                    });
+                    if (!g) return a;
+                }
+            }
+        }
+    } while (t && (x.lastIndex = s));
+
+    return a;
+}
 /**
  * Creates a DOM element to wrap the given content. Normally an `DIV`, but can be
  * also a `TABLE`, `SELECT`, `TBODY`, `TR`, or `COLGROUP` element.
